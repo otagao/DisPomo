@@ -85,3 +85,4 @@ temp/
 # Coding Agents-related files
 AGENTS.md
 CLAUDE.md
+.claude/
