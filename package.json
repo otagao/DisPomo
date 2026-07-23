@@ -1,0 +1,73 @@
+{
+  "name": "dispomo",
+  "version": "0.1.0",
+  "private": true,
+  "author": "DisPomo contributors",
+  "description": "Local-first Pomodoro task manager with Discord Rich Presence",
+  "main": "dist/main/main/main.js",
+  "scripts": {
+    "dev": "npm run build:main && concurrently -k \"tsc -p tsconfig.main.json --watch\" \"vite --config vite.config.ts\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "vite build --config vite.config.ts",
+    "build": "npm run build:main && npm run build:renderer",
+    "package": "npm run build && electron-builder",
+    "package:dir": "npm run build && electron-builder --dir",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "discord-rpc": "^4.0.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/discord-rpc": "^4.0.8",
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "concurrently": "^9.2.0",
+    "cross-env": "^7.0.3",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.6",
+    "vitest": "^3.2.4",
+    "wait-on": "^8.0.4"
+  },
+  "build": {
+    "appId": "com.dispomo.app",
+    "productName": "DisPomo",
+    "asar": true,
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "category": "Utility",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  }
+}
