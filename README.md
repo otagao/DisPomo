@@ -38,14 +38,26 @@ npm run package:dir
 
 ## Discord Rich Presence
 
-1. Discord Developer Portal で Application を作成します。
-2. Application ID を DisPomo の「設定 → Discord Application ID」に入力します。
-3. 必要なら Rich Presence Assets に `focus` と `break` を登録します。
-4. Discord 連携を有効にし、表示範囲を選びます。
+有効な既定Application IDを同梱した配布版では、DisPomoをインストールして
+Discordを起動するだけで、集中状況が自動的にRich Presenceへ反映されます。
+OAuth認証、client secret、追加スコープの設定は必要ありません。
 
-Application ID は、起動時の `DISCORD_CLIENT_ID` 環境変数でも指定できます。
-設定画面の値が優先されます。Discord が終了していても、タスク管理とタイマーは
-そのまま動作します。
+「設定 → Discord Rich Presence」では、連携の有効・無効と表示範囲を選べます。
+表示範囲は、正確なタスク名、プロジェクト名のみ、一般テキストから選択できます。
+タスク情報を表示したくない場合は、Discord連携を無効にしてください。
+
+通常、Application ID欄は空のままで構いません。独自のDiscord Applicationと
+Rich Presence Assetsを使いたい場合だけ、そのApplication IDを詳細設定欄へ
+入力します。`DISPOMO_DISCORD_APP_ID`は実行時に読み込まれ、開発時や自前ビルドを
+起動する際の上書きに利用できます。設定画面の値が優先されます。
+
+配布版へ既定IDを恒久的に埋め込む場合は、
+`src/integrations/discord/constants.ts`のプレースホルダーを実際のApplication IDへ
+置き換えてからビルドします。プレースホルダー、空文字、明らかに不正な形式のIDでは
+Discordへの接続を試みません。
+
+Discordが終了している、または利用できない場合も、タスク管理とタイマーは
+そのまま動作し、再接続可能になった時点で自動的に連携を再開します。
 
 ## アーキテクチャ
 

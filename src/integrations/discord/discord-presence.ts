@@ -42,7 +42,7 @@ export class DiscordPresence {
       await this.connect(input.clientId);
       if (!this.client) return;
 
-      const activity = this.activity(input);
+      const activity = createDiscordActivity(input);
       const serialized = JSON.stringify(activity);
       if (serialized === this.lastPayload) return;
 
@@ -81,6 +81,7 @@ export class DiscordPresence {
         this.retryAfter = Date.now() + 15_000;
       }
     });
+    // Rich PresenceにはローカルIPCのclientIdだけが必要で、OAuthスコープやsecretは不要。
     this.connecting = client
       .login({ clientId })
       .then(() => undefined)
@@ -88,47 +89,6 @@ export class DiscordPresence {
         this.connecting = undefined;
       });
     await this.connecting;
-  }
-
-  private activity(input: PresenceInput): DiscordRPC.Presence {
-    const details =
-      input.privacy === "task"
-        ? input.taskTitle ?? "タスクに集中しています"
-        : input.privacy === "project"
-          ? input.projectName ?? "プロジェクトに集中しています"
-          : "タスクに集中しています";
-    const progress =
-      input.totalSubtasks > 0
-        ? `サブタスク ${input.completedSubtasks}/${input.totalSubtasks}`
-        : "タスクを進行中";
-    const phase =
-      input.phase === "focus"
-        ? "ポモドーロ"
-        : input.phase === "shortBreak"
-          ? "短い休憩"
-          : "長い休憩";
-    const sessionProgress =
-      input.estimatedFocusSessions === undefined
-        ? `${input.completedFocusSessions + 1}`
-        : `${Math.min(input.completedFocusSessions + 1, input.estimatedFocusSessions)}/${input.estimatedFocusSessions}`;
-
-    const activity: DiscordRPC.Presence = {
-      details: `${details} — ${progress}`,
-      state:
-        input.status === "paused"
-          ? `${phase} — 一時停止中`
-          : `${phase} ${sessionProgress}`,
-      largeImageKey: input.phase === "focus" ? "focus" : "break",
-      largeImageText: input.phase === "focus" ? "集中時間" : "休憩時間",
-      instance: false
-    };
-    if (input.status === "running" && input.endsAt !== undefined) {
-      activity.endTimestamp = new Date(input.endsAt);
-    }
-    if (input.status === "running" && input.startedAt !== undefined) {
-      activity.startTimestamp = new Date(input.startedAt);
-    }
-    return activity;
   }
 
   private disposeClient(): void {
@@ -142,4 +102,47 @@ export class DiscordPresence {
       }
     }
   }
+}
+
+export function createDiscordActivity(
+  input: PresenceInput
+): DiscordRPC.Presence {
+  const details =
+    input.privacy === "task"
+      ? input.taskTitle ?? "タスクに集中しています"
+      : input.privacy === "project"
+        ? input.projectName ?? "プロジェクトに集中しています"
+        : "タスクに集中しています";
+  const progress =
+    input.totalSubtasks > 0
+      ? `サブタスク ${input.completedSubtasks}/${input.totalSubtasks}`
+      : "タスクを進行中";
+  const phase =
+    input.phase === "focus"
+      ? "ポモドーロ"
+      : input.phase === "shortBreak"
+        ? "短い休憩"
+        : "長い休憩";
+  const sessionProgress =
+    input.estimatedFocusSessions === undefined
+      ? `${input.completedFocusSessions + 1}`
+      : `${Math.min(input.completedFocusSessions + 1, input.estimatedFocusSessions)}/${input.estimatedFocusSessions}`;
+
+  const activity: DiscordRPC.Presence = {
+    details: `${details} — ${progress}`,
+    state:
+      input.status === "paused"
+        ? `${phase} — 一時停止中`
+        : `${phase} ${sessionProgress}`,
+    largeImageKey: input.phase === "focus" ? "focus" : "break",
+    largeImageText: input.phase === "focus" ? "集中時間" : "休憩時間",
+    instance: false
+  };
+  if (input.status === "running" && input.endsAt !== undefined) {
+    activity.endTimestamp = new Date(input.endsAt);
+  }
+  if (input.status === "running" && input.startedAt !== undefined) {
+    activity.startTimestamp = new Date(input.startedAt);
+  }
+  return activity;
 }

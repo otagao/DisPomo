@@ -2,6 +2,7 @@ import type { BrowserWindow } from "electron";
 import { Notification } from "electron";
 import { calculateTaskProgress, type Settings } from "../domain";
 import { AppStore } from "../database/store";
+import { resolveDiscordApplicationId } from "../integrations/discord/constants";
 import { DiscordPresence } from "../integrations/discord/discord-presence";
 import {
   createPomodoroState,
@@ -296,10 +297,9 @@ export class AppService {
           );
     await this.presence.update({
       enabled: snapshot.settings.discordEnabled,
-      clientId:
-        snapshot.settings.discordClientId ||
-        process.env.DISCORD_CLIENT_ID ||
-        "",
+      clientId: resolveDiscordApplicationId(
+        snapshot.settings.discordClientId
+      ),
       privacy: snapshot.settings.discordPrivacy,
       ...(task ? { taskTitle: task.title } : {}),
       ...(project ? { projectName: project.name } : {}),
