@@ -37,7 +37,7 @@ describe("getDisplayedSeconds", () => {
     ).toBe(24 * 60 + 59);
   });
 
-  it("uses the persisted remaining time while paused", () => {
+  it("rounds a paused timer up to the same visible second as a running timer", () => {
     expect(
       getDisplayedSeconds(
         {
@@ -48,6 +48,47 @@ describe("getDisplayedSeconds", () => {
         },
         999_999
       )
-    ).toBe(720.5);
+    ).toBe(721);
+  });
+
+  it("keeps the display consistent across the running and paused boundary", () => {
+    const now = 100_000;
+    const remainingMs = 24 * minute + 55_100;
+
+    const runningSeconds = getDisplayedSeconds(
+      {
+        durationMs: 25 * minute,
+        remainingMs,
+        status: "running",
+        endsAt: now + remainingMs
+      },
+      now
+    );
+    const pausedSeconds = getDisplayedSeconds(
+      {
+        durationMs: 25 * minute,
+        remainingMs,
+        status: "paused",
+        endsAt: null
+      },
+      now
+    );
+
+    expect(runningSeconds).toBe(24 * 60 + 56);
+    expect(pausedSeconds).toBe(runningSeconds);
+  });
+
+  it("uses the same rounding while idle", () => {
+    expect(
+      getDisplayedSeconds(
+        {
+          durationMs: 1_000,
+          remainingMs: 500,
+          status: "idle",
+          endsAt: null
+        },
+        0
+      )
+    ).toBe(1);
   });
 });
