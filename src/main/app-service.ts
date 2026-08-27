@@ -2,8 +2,8 @@ import type { BrowserWindow } from "electron";
 import { Notification } from "electron";
 import { calculateTaskProgress, type Settings } from "../domain";
 import { AppStore } from "../database/store";
-import { resolveDiscordApplicationId } from "../integrations/discord/constants";
 import { DiscordPresence } from "../integrations/discord/discord-presence";
+import { resolveDiscordApplicationId } from "../integrations/discord/constants";
 import {
   createPomodoroState,
   getSnapshot as getPomodoroSnapshot,
@@ -270,6 +270,23 @@ export class AppService {
   }
 
   private async updatePresence(snapshot: RendererSnapshot): Promise<void> {
+    const applicationId = resolveDiscordApplicationId({
+      settingsApplicationId: snapshot.settings.discordClientId,
+      environmentApplicationId: process.env.DISPOMO_DISCORD_APP_ID
+    });
+    if (process.env.DISPOMO_DEBUG_DISCORD === "1") {
+      const source =
+        applicationId.source === "settings"
+          ? "設定画面"
+          : applicationId.source === "environment"
+            ? "環境変数"
+            : "既定値";
+      console.debug("[Discord] Application ID を解決しました", {
+        applicationId: applicationId.candidate || "(未設定)",
+        source,
+        valid: applicationId.valid
+      });
+    }
     const task =
       snapshot.pomodoro.taskId === null
         ? undefined
@@ -297,9 +314,7 @@ export class AppService {
           );
     await this.presence.update({
       enabled: snapshot.settings.discordEnabled,
-      clientId: resolveDiscordApplicationId(
-        snapshot.settings.discordClientId
-      ),
+      clientId: applicationId.applicationId,
       privacy: snapshot.settings.discordPrivacy,
       ...(task ? { taskTitle: task.title } : {}),
       ...(project ? { projectName: project.name } : {}),

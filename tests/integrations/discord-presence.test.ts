@@ -1,77 +1,136 @@
-import { describe, expect, it } from "vitest";
-
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   isDiscordApplicationId,
   resolveDiscordApplicationId
 } from "../../src/integrations/discord/constants";
-import {
-  createDiscordActivity,
-  type PresenceInput
-} from "../../src/integrations/discord/discord-presence";
+import { DiscordPresence } from "../../src/integrations/discord/discord-presence";
 
-const BASE_INPUT: PresenceInput = {
-  enabled: true,
-  clientId: "123456789012345678",
-  privacy: "task",
-  taskTitle: "レポート作成",
-  projectName: "仕事",
-  completedSubtasks: 3,
-  totalSubtasks: 5,
-  phase: "focus",
-  status: "running",
-  completedFocusSessions: 1,
-  estimatedFocusSessions: 4,
-  startedAt: 1_000,
-  endsAt: 1_501_000
-};
+const discordRpc = vi.hoisted(() => ({
+  clients: [] as Array<{
+    listeners: Map<string, () => void>;
+    login: ReturnType<typeof vi.fn>;
+    setActivity: ReturnType<typeof vi.fn>;
+    destroy: ReturnType<typeof vi.fn>;
+  }>
+}));
 
-describe("Discord Rich Presence", () => {
-  it("プレースホルダーや不正なApplication IDを接続対象にしない", () => {
-    expect(resolveDiscordApplicationId("", "000000000000000000")).toBe("");
-    expect(resolveDiscordApplicationId("000000000000000000")).toBe("");
-    expect(resolveDiscordApplicationId("not-an-application-id")).toBe("");
-    expect(isDiscordApplicationId("000000000000000000")).toBe(false);
+vi.mock("discord-rpc", () => ({
+  default: {
+    Client: class {
+      listeners = new Map<string, () => void>();
+      login = vi.fn().mockResolvedValue(undefined);
+      setActivity = vi.fn().mockResolvedValue(undefined);
+      destroy = vi.fn().mockResolvedValue(undefined);
+
+      constructor() {
+        discordRpc.clients.push(this);
+      }
+
+      on(event: string, listener: () => void) {
+        this.listeners.set(event, listener);
+        return this;
+      }
+    }
+  }
+}));
+
+describe("Discord Application ID", () => {
+  const realApplicationId = "1530312919642804335";
+
+  it("17〜20桁の数字だけを有効と判定する", () => {
+    expect(isDiscordApplicationId(realApplicationId)).toBe(true);
+    expect(isDiscordApplicationId("")).toBe(false);
+    expect(isDiscordApplicationId("0000000000000000")).toBe(false);
+    expect(isDiscordApplicationId("1530312919642804335x")).toBe(false);
   });
 
-  it("実Application IDを設定した場合は接続対象にする", () => {
+  it("既定IDに実IDを設定したら有効になる", () => {
     expect(
-      resolveDiscordApplicationId(
-        "  123456789012345678  ",
-        "234567890123456789"
-      )
-    ).toBe("123456789012345678");
-    expect(resolveDiscordApplicationId("", "234567890123456789")).toBe(
-      "234567890123456789"
-    );
-    expect(isDiscordApplicationId("123456789012345678")).toBe(true);
-  });
-
-  it("実行中の集中セッション用Presenceペイロードを生成する", () => {
-    expect(createDiscordActivity(BASE_INPUT)).toEqual({
-      details: "レポート作成 — サブタスク 3/5",
-      state: "ポモドーロ 2/4",
-      largeImageKey: "focus",
-      largeImageText: "集中時間",
-      instance: false,
-      startTimestamp: new Date(1_000),
-      endTimestamp: new Date(1_501_000)
-    });
-  });
-
-  it("一時停止中はタイムスタンプを送らずプライバシー設定を反映する", () => {
-    expect(
-      createDiscordActivity({
-        ...BASE_INPUT,
-        privacy: "generic",
-        phase: "shortBreak",
-        status: "paused"
+      resolveDiscordApplicationId({
+        defaultApplicationId: realApplicationId
       })
     ).toEqual({
-      details: "タスクに集中しています — サブタスク 3/5",
-      state: "短い休憩 — 一時停止中",
-      largeImageKey: "break",
-      largeImageText: "休憩時間",
-      instance: false
+      applicationId: realApplicationId,
+      candidate: realApplicationId,
+      source: "default",
+      valid: true
     });
+  });
+
+  it("設定画面、環境変数、既定値の順に優先する", () => {
+    expect(
+      resolveDiscordApplicationId({
+        settingsApplicationId: " 12345678901234567 ",
+        environmentApplicationId: "123456789012345678",
+        defaultApplicationId: realApplicationId
+      }).source
+    ).toBe("settings");
+    expect(
+      resolveDiscordApplicationId({
+        environmentApplicationId: "123456789012345678",
+        defaultApplicationId: realApplicationId
+      }).source
+    ).toBe("environment");
+  });
+
+  it("未設定または不正形式なら空文字へ解決する", () => {
+    expect(resolveDiscordApplicationId({}).applicationId).toBe("");
+    expect(
+      resolveDiscordApplicationId({ settingsApplicationId: "invalid" })
+    ).toMatchObject({ applicationId: "", valid: false });
+  });
+});
+
+describe("Discord Presence", () => {
+  const input = {
+    enabled: true,
+    clientId: "1530312919642804335",
+    privacy: "generic" as const,
+    completedSubtasks: 0,
+    totalSubtasks: 0,
+    phase: "focus" as const,
+    status: "idle" as const,
+    completedFocusSessions: 0
+  };
+
+  beforeEach(() => {
+    discordRpc.clients.length = 0;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-27T00:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("接続完了後にアセットなしの Presence を送信する", async () => {
+    const presence = new DiscordPresence();
+
+    await presence.update(input);
+
+    const client = discordRpc.clients[0];
+    expect(client?.login).toHaveBeenCalledWith({ clientId: input.clientId });
+    expect(client?.setActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: "タスクに集中しています — タスクを進行中",
+        state: "ポモドーロ 1",
+        instance: false
+      })
+    );
+    expect(client?.setActivity.mock.calls[0]?.[0]).not.toHaveProperty(
+      "largeImageKey"
+    );
+  });
+
+  it("切断後は同じペイロードでも再接続して再送する", async () => {
+    const presence = new DiscordPresence();
+    await presence.update(input);
+    discordRpc.clients[0]?.listeners.get("disconnected")?.();
+    vi.advanceTimersByTime(15_000);
+
+    await presence.update(input);
+
+    expect(discordRpc.clients).toHaveLength(2);
+    expect(discordRpc.clients[1]?.setActivity).toHaveBeenCalledOnce();
   });
 });

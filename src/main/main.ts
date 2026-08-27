@@ -66,6 +66,7 @@ if (hasSingleInstanceLock) void app.whenReady().then(() => {
   const store = new AppStore(join(app.getPath("userData"), "dispomo.sqlite"));
   service = new AppService(store, () => BrowserWindow.getAllWindows());
   registerIpcHandlers(store, service);
+  void service.publish();
   mainWindow = createWindow();
   tray = new TrayController(() => mainWindow);
   tray.create();
