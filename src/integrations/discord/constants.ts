@@ -3,7 +3,7 @@
  * 共通 ID を使う場合は、空文字を Developer Portal で発行した実 ID に置き換える。
  * 空文字のままなら未設定として扱う。
  */
-export const DEFAULT_DISCORD_APPLICATION_ID = "";
+export const DEFAULT_DISCORD_APPLICATION_ID = "1530312919642804335";
 
 export type DiscordApplicationIdSource =
   | "settings"
