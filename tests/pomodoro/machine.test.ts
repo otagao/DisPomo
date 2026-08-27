@@ -86,6 +86,39 @@ describe("pomodoro state machine", () => {
     });
   });
 
+  it("preserves exact remaining milliseconds across rapid pause and resume", () => {
+    let state = command(createPomodoroState(settings), {
+      type: "start",
+      at: 0,
+    }).state;
+
+    state = command(state, { type: "pause", at: 4_123 }).state;
+    expect(state).toMatchObject({
+      status: "paused",
+      elapsedMs: 4_123,
+      remainingMs: 25 * minute - 4_123,
+    });
+
+    state = command(state, { type: "resume", at: 4_223 }).state;
+    state = command(state, { type: "pause", at: 4_273 }).state;
+    expect(state).toMatchObject({
+      status: "paused",
+      elapsedMs: 4_173,
+      remainingMs: 25 * minute - 4_173,
+    });
+
+    const remainingAfterSecondPause = getRemainingMs(state, 4_273);
+    state = command(state, { type: "resume", at: 4_373 }).state;
+    state = command(state, { type: "pause", at: 4_373 }).state;
+
+    expect(getRemainingMs(state, 4_373)).toBe(remainingAfterSecondPause);
+    expect(state).toMatchObject({
+      status: "paused",
+      elapsedMs: 4_173,
+      remainingMs: 25 * minute - 4_173,
+    });
+  });
+
   it("does not transition on tick before the scheduled end", () => {
     const started = command(createPomodoroState(settings), {
       type: "start",

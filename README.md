@@ -38,14 +38,40 @@ npm run package:dir
 
 ## Discord Rich Presence
 
-1. Discord Developer Portal で Application を作成します。
-2. Application ID を DisPomo の「設定 → Discord Application ID」に入力します。
-3. 必要なら Rich Presence Assets に `focus` と `break` を登録します。
-4. Discord 連携を有効にし、表示範囲を選びます。
+有効な既定 Application ID を同梱した配布版では、DisPomo をインストールして
+Discord を起動するだけで、集中状況が自動的に Rich Presence に反映されます。
+OAuth 認証、client secret、追加スコープの設定は不要です。
 
-Application ID は、起動時の `DISCORD_CLIENT_ID` 環境変数でも指定できます。
-設定画面の値が優先されます。Discord が終了していても、タスク管理とタイマーは
-そのまま動作します。
+「設定 → Discord Rich Presence」では、連携の有効・無効と表示範囲を選べます。
+表示範囲は「正確なタスク名」「プロジェクト名のみ」「一般テキスト」から選択でき、
+タスク情報を出したくない場合は連携を無効にできます。Application ID 入力欄は任意の
+詳細設定です。通常は空のままでよく、独自の Discord Application を使いたい場合のみ
+入力してください。
+
+配布ビルドへ共通の Application ID を埋め込むには、
+`src/integrations/discord/constants.ts` の `DEFAULT_DISCORD_APPLICATION_ID` に実 ID を
+記述します。空文字は「未設定」を意味し、実 ID に置き換えた時点で既定値として有効に
+なります。Application ID は、設定画面の値、`DISPOMO_DISCORD_APP_ID` 環境変数、
+既定値の順に優先されます。環境変数は実行時に読み込まれ、開発時や自前ビルドの起動時に
+上書きするために使えます。選ばれた値が未設定、または Discord のスノーフレークである
+17〜20 桁の数字ではない場合、Discord への接続は試みません。
+
+画像アセットの登録は必須ではありません。未登録アセットが原因で Presence 全体が
+失敗しないよう、アセットキーは送信していません。Discord が終了している、または
+利用できない場合も、タスク管理とタイマーはそのまま動作し、再接続可能になった時点で
+自動的に連携を再開します。
+
+表示されない場合は Discord デスクトップ版を起動し、ユーザー設定で「現在の実行中の
+アクティビティをステータスに表示する」設定が有効になっていることを確認してください。
+そのうえで、詳細ログを有効にして DisPomo を起動します。
+
+```bash
+DISPOMO_DEBUG_DISCORD=1 npm start
+```
+
+ログでは Application ID の値・取得元・有効判定、接続の成否、`setActivity` の
+ペイロードと送信結果を順に確認できます。失敗時はメッセージと Discord RPC の
+エラーコードが表示されます。
 
 ## アーキテクチャ
 

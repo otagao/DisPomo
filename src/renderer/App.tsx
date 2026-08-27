@@ -144,7 +144,10 @@ export function App() {
     // value captured when the app was initially opened.
     setNow(Date.now());
     setSnapshot(next);
-    setSettingsDraft(next.settings);
+    // 設定画面で編集中の値は、タイマーなどのスナップショット更新で上書きしない。
+    if (activePanel !== "settings") {
+      setSettingsDraft(next.settings);
+    }
     setSelectedProjectId((current) => {
       if (current && next.projects.some((project) => project.id === current)) return current;
       const taskProject = next.tasks.find((task) => task.id === next.selectedTaskId)?.projectId;
@@ -157,7 +160,7 @@ export function App() {
       }
       return next.tasks.find((task) => !task.completedAt)?.id ?? next.tasks[0]?.id ?? null;
     });
-  }, []);
+  }, [activePanel]);
 
   useEffect(() => {
     let mounted = true;
@@ -273,7 +276,12 @@ export function App() {
 
   const saveSettings = (event: FormEvent) => {
     event.preventDefault();
-    void run("save-settings", () => window.dispomo.saveSettings(settingsDraft));
+    const normalizedSettings = {
+      ...settingsDraft,
+      discordClientId: settingsDraft.discordClientId.trim(),
+    };
+    setSettingsDraft(normalizedSettings);
+    void run("save-settings", () => window.dispomo.saveSettings(normalizedSettings));
   };
 
   if (loading) {
@@ -702,22 +710,25 @@ export function App() {
                 </div>
                 <fieldset disabled={!settingsDraft.discordEnabled}>
                   <label className="client-id-field">
-                    <span>Discord Application ID</span>
+                    <span>Discord Application ID（詳細設定・任意）</span>
                     <input
                       autoComplete="off"
                       maxLength={64}
                       onChange={(event) =>
                         setSettingsDraft((current) => ({
                           ...current,
-                          discordClientId: event.target.value.trim(),
+                          discordClientId: event.target.value,
                         }))
                       }
-                      placeholder="例: 123456789012345678"
+                      placeholder="空欄の場合はDisPomo既定のアプリを使用"
                       spellCheck={false}
                       type="text"
                       value={settingsDraft.discordClientId}
                     />
-                    <small>Discord Developer Portalで作成したApplication IDです。</small>
+                    <small>
+                      通常は空のままで構いません（DisPomo既定のアプリが使われます）。
+                      独自の表示アセットを使う場合のみ入力してください。
+                    </small>
                   </label>
                   <legend>Discordに表示する内容</legend>
                   {([
