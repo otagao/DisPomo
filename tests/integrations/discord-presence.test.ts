@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  DEFAULT_DISCORD_APPLICATION_ID,
   isDiscordApplicationId,
   resolveDiscordApplicationId
 } from "../../src/integrations/discord/constants";
@@ -73,8 +74,23 @@ describe("Discord Application ID", () => {
     ).toBe("environment");
   });
 
+  it("配布版の既定IDは実IDである", () => {
+    expect(DEFAULT_DISCORD_APPLICATION_ID).toBe(realApplicationId);
+  });
+
+  it("未指定なら配布版の既定IDへ解決する", () => {
+    expect(resolveDiscordApplicationId({})).toEqual({
+      applicationId: realApplicationId,
+      candidate: realApplicationId,
+      source: "default",
+      valid: true
+    });
+  });
+
   it("未設定または不正形式なら空文字へ解決する", () => {
-    expect(resolveDiscordApplicationId({}).applicationId).toBe("");
+    expect(
+      resolveDiscordApplicationId({ defaultApplicationId: "" })
+    ).toMatchObject({ applicationId: "", valid: false });
     expect(
       resolveDiscordApplicationId({ settingsApplicationId: "invalid" })
     ).toMatchObject({ applicationId: "", valid: false });
