@@ -17,7 +17,8 @@ SQLite で構築されています。
 
 ## 開発
 
-Node.js 22 以降を使います。
+Node.js 22.13 以降（22.x / 24.x LTS）を使います。Vite 7 と `node:sqlite` の要件のため、
+それより古い Node.js では `npm run dev` や `npm test` が失敗します。
 
 ```bash
 npm install
